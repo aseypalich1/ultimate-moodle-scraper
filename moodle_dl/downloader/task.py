@@ -692,6 +692,10 @@ class Task:
         if self.status.state != TaskState.INIT:
             logging.debug('[%d] Task was already started', self.task_id)
             return
+        if self.status.skip_requested:
+            logging.info('[%d] Task skipped by user', self.task_id)
+            self.report_failure()
+            return
         self.status.state = TaskState.STARTED
 
         success = await self.real_run()
@@ -863,6 +867,13 @@ class Task:
 
                             file_obj = file_obj or await aiofiles.open(dest_path, "wb")
                             async for chunk in resp.content.iter_chunked(self.CHUNK_SIZE):
+                                if self.status.skip_requested:
+                                    logging.info('[%d] Download skipped by user', self.task_id)
+                                    if file_obj is not None and not file_obj.closed:
+                                        await file_obj.close()
+                                    PT.remove_file(dest_path)
+                                    self.report_received_bytes(-total_bytes_received)
+                                    raise RuntimeError('Download skipped by user')
                                 bytes_received = len(chunk)
                                 total_bytes_received += bytes_received
                                 self.report_received_bytes(bytes_received)

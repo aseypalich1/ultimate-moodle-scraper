@@ -1,6 +1,7 @@
 import json
 import os
 import sys
+import threading
 from pathlib import Path
 from typing import Dict, List, Tuple
 
@@ -18,6 +19,7 @@ class ConfigHelper:
 
     def __init__(self, opts: MoodleDlOpts):
         self._whole_config = {}
+        self._lock = threading.RLock()
         self.opts = opts
         self.config_path = str(Path(opts.path) / 'config.json')
 
@@ -28,23 +30,27 @@ class ConfigHelper:
     def load(self):
         # TODO: Load config into dataclass, so we can access that class instead of using getters
         # Opens the configuration file and parse it to a JSON object
-        try:
-            with open(self.config_path, 'r', encoding='utf-8') as config_file:
-                config_raw = config_file.read()
-                self._whole_config = json.loads(config_raw)
-        except (IOError, OSError) as err_load:
-            raise ConfigHelper.NoConfigError(f'Configuration could not be loaded from {self.config_path}\n{err_load!s}')
+        with self._lock:
+            try:
+                with open(self.config_path, 'r', encoding='utf-8') as config_file:
+                    config_raw = config_file.read()
+                    self._whole_config = json.loads(config_raw)
+            except (IOError, OSError) as err_load:
+                raise ConfigHelper.NoConfigError(
+                    f'Configuration could not be loaded from {self.config_path}\n{err_load!s}'
+                )
 
     def _save(self):
         # TODO: Use dataclass and write that back to file, so that all options are always present
         config_formatted = json.dumps(self._whole_config, indent=4)
         # Saves the JSON object back to file
-        with os.fdopen(
-            os.open(self.config_path, flags=os.O_WRONLY | os.O_CREAT | os.O_TRUNC, mode=0o600),
-            mode='w',
-            encoding='utf-8',
-        ) as config_file:
-            config_file.write(config_formatted)
+        with self._lock:
+            with os.fdopen(
+                os.open(self.config_path, flags=os.O_WRONLY | os.O_CREAT | os.O_TRUNC, mode=0o600),
+                mode='w',
+                encoding='utf-8',
+            ) as config_file:
+                config_file.write(config_formatted)
 
     def get_property(self, key: str) -> any:
         # return a property if configured
@@ -62,14 +68,16 @@ class ConfigHelper:
 
     def set_property(self, key: str, value: any):
         # sets a property in the JSON object
-        self._whole_config.update({key: value})
-        self._save()
+        with self._lock:
+            self._whole_config.update({key: value})
+            self._save()
 
     def remove_property(self, key):
         # removes a property from the JSON object
-        self._whole_config.pop(key, None)
-        #                           ^ behavior if the key is not present
-        self._save()
+        with self._lock:
+            self._whole_config.pop(key, None)
+            #                           ^ behavior if the key is not present
+            self._save()
 
     # ---------------------------- GETTERS ------------------------------------
 
