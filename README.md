@@ -46,7 +46,16 @@ If you run the program on **Windows**, please use [Powershell or CMD](https://ww
 
 5. Run `moodle-dl --help` to see all available options.
 
- 
+### GUI (optional)
+
+A graphical interface is available for login, course configuration, download management, and settings — no command line needed.
+
+1. Install the GUI dependency: `pip install "moodle-dl[gui]"`
+2. Launch with: `moodle-dl --gui`
+
+Requires `PySide6 >= 6.5.0`. If PySide6 is not installed, the command prints a helpful error and exits.
+
+
 
 ### Usage
 Moodle-dl uses the Moodle mobile API. If your Moodle does not allow access via [the Moodle app](https://download.moodle.org/mobile/), Moodle-dl will not be able to connect to your Moodle.

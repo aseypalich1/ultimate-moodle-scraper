@@ -87,7 +87,7 @@ class ResultBuilder:
                 location['module_modname'] = 'cookie_mod-' + location['module_modname']
                 files += self._handle_cookie_mod(module_url, **location)
 
-            elif location['module_modname'].startswith(('resource', 'akarifolder', 'url', 'index_mod')):
+            elif location['module_modname'].startswith(('resource', 'akarifolder', 'url', 'index_mod', 'pdfannotator')):
                 files += self._handle_files(module_contents, **location)
 
             elif location['module_modname'] in fetched_mods:

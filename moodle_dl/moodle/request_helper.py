@@ -30,6 +30,7 @@ class RequestHelper:
         'Content-Type': 'application/x-www-form-urlencoded',
     }
     MAX_RETRIES = 5
+    RETRYABLE_MOODLE_ERRORS = {'ex_unabletolock'}
 
     def __init__(self, config: ConfigHelper, opts: MoodleDlOpts, moodle_url: MoodleURL, token: str):
         self.token = token
@@ -152,6 +153,7 @@ class RequestHelper:
                     asyncio.exceptions.TimeoutError,
                     OSError,
                     ValueError,
+                    RetryableRequestError,
                 ) as req_err:
                     if (isinstance(req_err, aiohttp.client_exceptions.ClientResponseError)) and (
                         req_err.status not in [408, 409, 429]  # pylint: disable=no-member
@@ -194,7 +196,15 @@ class RequestHelper:
         while error_ctr <= self.MAX_RETRIES:
             try:
                 response = session.post(url, data=data_urlencoded, headers=self.RQ_HEADER, timeout=timeout)
+                json_result = self._initial_parse(response, url, data)
                 break
+            except RetryableRequestError as req_err:
+                error_ctr += 1
+                if error_ctr < self.MAX_RETRIES:
+                    logging.debug("Retryable Moodle error (attempt %s), retrying. %s", error_ctr, req_err)
+                    sleep(1)
+                    continue
+                raise
             except (requests.ConnectionError, requests.Timeout) as req_err:
                 # We treat requests.ConnectionErrors here specially, since they normally mean,
                 # that something went wrong, which could be fixed by a restart.
@@ -207,7 +217,6 @@ class RequestHelper:
             except RequestException as req_err:
                 raise ConnectionError(f"Connection error: {req_err}") from None
 
-        json_result = self._initial_parse(response, url, data)
         self.log_response(function, data, response.url, json_result)
 
         return json_result
@@ -320,12 +329,16 @@ class RequestHelper:
         # Check for known errors
         if 'error' in resp_json:
             self.log_failed_request(url, data)
-            raise RequestRejectedError(
+            error_code = resp_json.get('errorcode', '')
+            error_msg = (
                 'The Moodle System rejected the Request.'
-                + f" Details: {resp_json.get('error', '')} (Error code: {resp_json.get('errorcode', '')},"
+                + f" Details: {resp_json.get('error', '')} (Error code: {error_code},"
                 + f" Stacktrace: {resp_json.get('stacktrace', '')}, Debug info: {resp_json.get('debuginfo', '')},"
                 + f" Reproduction link: {resp_json.get('reproductionlink', '')})"
             )
+            if error_code in self.RETRYABLE_MOODLE_ERRORS:
+                raise RetryableRequestError(error_msg)
+            raise RequestRejectedError(error_msg)
 
         if 'exception' in resp_json:
             self.log_failed_request(url, data)
@@ -337,11 +350,14 @@ class RequestHelper:
                     + ' To create a new one run "moodle-dl -nt -u USERNAME -pw PASSWORD" or "moodle-dl -nt -sso"'
                 )
 
-            raise RequestRejectedError(
+            error_msg = (
                 'The Moodle System rejected the Request.'
                 + f" Details: {resp_json.get('exception', '')} (Error code: {error_code},"
                 + f" Message: {resp_json.get('message', '')})"
             )
+            if error_code in self.RETRYABLE_MOODLE_ERRORS:
+                raise RetryableRequestError(error_msg)
+            raise RequestRejectedError(error_msg)
 
     @staticmethod
     def recursive_urlencode(data):
@@ -376,5 +392,11 @@ class RequestHelper:
 class RequestRejectedError(Exception):
     """An Exception which gets thrown if the Moodle-System answered with an
     Error to our Request"""
+
+    pass
+
+
+class RetryableRequestError(RequestRejectedError):
+    """A Moodle error that is transient and should be retried."""
 
     pass

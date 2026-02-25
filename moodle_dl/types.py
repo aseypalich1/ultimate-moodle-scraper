@@ -279,6 +279,7 @@ class MoodleDlOpts:
     quiet: bool
     log_to_file: bool
     log_file_path: str
+    gui: bool
 
 
 class TaskState(Enum):
@@ -299,6 +300,7 @@ class TaskStatus:
     yt_dlp_current_file: str = field(init=False, default=None)
     yt_dlp_total_size_per_file: Dict[str, int] = field(init=False, default_factory=dict)
     yt_dlp_bytes_downloaded_per_file: Dict[str, int] = field(init=False, default_factory=dict)
+    skip_requested: bool = field(init=False, default=False)
 
     def get_error_text(self) -> str:
         str_error = str(self.error).strip()

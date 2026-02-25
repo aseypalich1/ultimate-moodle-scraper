@@ -509,6 +509,14 @@ def get_parser():
     )
 
     parser.add_argument(
+        '--gui',
+        dest='gui',
+        default=False,
+        action='store_true',
+        help='Launch the graphical user interface. Requires PySide6 (install with: pip install moodle-dl[gui]).',
+    )
+
+    parser.add_argument(
         '-ltf',
         '--log-to-file',
         dest='log_to_file',
@@ -551,6 +559,18 @@ def main(args=None):
     just_fix_windows_console()
     opts = post_process_opts(MoodleDlOpts(**vars(get_parser().parse_args(args))))
     setup_logger(opts)
+
+    if opts.gui:
+        try:
+            from moodle_dl.gui import gui_main
+
+            gui_main(opts)
+        except ImportError:
+            logging.error(
+                'PySide6 is required for the GUI. Install it with: pip install moodle-dl[gui]'
+            )
+            sys.exit(1)
+        sys.exit(0)
 
     config = ConfigHelper(opts)
     if opts.init:
