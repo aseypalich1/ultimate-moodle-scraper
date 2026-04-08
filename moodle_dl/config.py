@@ -262,11 +262,21 @@ class ConfigHelper:
             write_links=self.get_write_links(),
             download_path=self.get_download_path(),
             global_opts=opts,
+            moodle_url=self.get_moodle_url(),
+            enable_mhtml_capture=self.get_enable_mhtml_capture(),
         )
 
     def get_restricted_filenames(self) -> Dict:
         # return the filenames should be restricted
         return self.get_property_or('restricted_filenames', False)
+
+    def get_enable_mhtml_capture(self) -> bool:
+        """Return True if MHTML page capture via Playwright is enabled.
+
+        Can be set either via config.json (``enable_mhtml_capture: true``)
+        or on the command line with ``--mhtml-capture``.
+        """
+        return self.get_property_or('enable_mhtml_capture', False) or getattr(self.opts, 'mhtml_capture', False)
 
     def get_use_http(self) -> bool:
         # return a stored boolean if http should be used instead of https

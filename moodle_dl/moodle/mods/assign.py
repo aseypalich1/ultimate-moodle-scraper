@@ -53,7 +53,22 @@ class AssignMod(MoodleMod):
                     }
                 )
 
-            result[assign.get('cmid', 0)] = {
+            cmid = assign.get('cmid', 0)
+            if self.config.get_enable_mhtml_capture() and cmid:
+                view_url = f'{self.client.url_base}mod/assign/view.php?id={cmid}'
+                assign_files.append(
+                    {
+                        'filename': 'Assignment page.mhtml',
+                        'filepath': '/',
+                        'fileurl': view_url,
+                        'filesize': 0,
+                        'timemodified': assign.get('timemodified', 0),
+                        'type': 'mhtml',
+                        'no_hash': True,
+                    }
+                )
+
+            result[cmid] = {
                 'id': assign.get('id', 0),
                 'name': assign.get('name', ''),
                 'timemodified': assign.get('timemodified', 0),

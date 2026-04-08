@@ -638,6 +638,64 @@ class Task:
         async with aiofiles.open(self.file.saved_to, 'w+', encoding='utf-8') as md_file:
             await md_file.write(md_content)
 
+    async def create_mhtml_file(self):
+        """Capture the Moodle page at self.file.content_fileurl as full MHTML via Playwright.
+
+        Requires:
+        - opts.enable_mhtml_capture is True
+        - opts.cookies_text contains valid Moodle session cookies
+        - playwright Python package is installed
+
+        The saved file uses a .mhtml extension regardless of the original filename.
+        Embedded pluginfile.php video URLs are downloaded to page_assets/ and
+        replaced with local relative paths inside the MHTML.
+        """
+        from moodle_dl.mhtml_capture import MhtmlCapture
+
+        logging.debug('[%d] Capturing MHTML from %s', self.task_id, self.file.content_fileurl)
+
+        if not self.opts.enable_mhtml_capture:
+            logging.debug('[%d] MHTML capture disabled, skipping', self.task_id)
+            os.remove(self.file.saved_to)
+            return
+
+        if not self.opts.cookies_text:
+            logging.warning(
+                '[%d] MHTML capture skipped: no Moodle cookies available. '
+                'Set a private token so that moodle-dl can fetch session cookies.',
+                self.task_id,
+            )
+            os.remove(self.file.saved_to)
+            return
+
+        # Ensure the output file has .mhtml extension
+        saved_to = Path(self.file.saved_to)
+        if saved_to.suffix.lower() != '.mhtml':
+            new_path = saved_to.with_suffix('.mhtml')
+            new_path = PT.get_unused_file_path(str(new_path))
+            if saved_to.exists():
+                os.remove(str(saved_to))
+            PT.touch_file(new_path)
+            self.file.saved_to = new_path
+            saved_to = Path(new_path)
+
+        url = self.file.content_fileurl
+
+        async def _http_get(dl_url: str) -> bytes:
+            """Simple authenticated GET for video asset downloads."""
+            async with aiohttp.ClientSession(cookie_jar=self.get_cookie_jar()) as session:
+                async with session.get(dl_url, timeout=aiohttp.ClientTimeout(total=300)) as resp:
+                    return await resp.read()
+
+        async with MhtmlCapture(self.opts.cookies_text, self.opts.token) as cap:
+            mhtml_text = await cap.save_mhtml(url)
+            mhtml_text = await cap.rewrite_videos(mhtml_text, saved_to.parent, _http_get)
+
+        async with aiofiles.open(str(saved_to), 'w', encoding='utf-8') as mhtml_file:
+            await mhtml_file.write(mhtml_text)
+
+        logging.debug('[%d] MHTML saved to %s', self.task_id, saved_to)
+
     async def create_html_file(self):
         "Create a HTML file"
         logging.debug('[%d] Creating a html file', self.task_id)
@@ -725,6 +783,10 @@ class Task:
             if self.file.content_type == 'description':
                 # Create a description file instead of downloading it
                 await self.create_description()
+
+            elif self.file.content_type == 'mhtml':
+                # Capture the live Moodle page via Playwright and save as MHTML
+                await self.create_mhtml_file()
 
             elif self.file.content_type == 'html':
                 # Create a HTML file instead of downloading it

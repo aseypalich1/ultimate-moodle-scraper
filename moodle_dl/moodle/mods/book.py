@@ -52,7 +52,40 @@ class BookMod(MoodleMod):
 
             book_contents = self.get_module_in_core_contents(course_id, module_id, core_contents).get('contents', [])
             if len(book_contents) > 1:
-                book_files += book_contents[1:]
+                if self.config.get_enable_mhtml_capture():
+                    # Capture each chapter as a full rendered MHTML page via Playwright
+                    for chapter_content in book_contents[1:]:
+                        chapter_path = chapter_content.get('filepath', '/')
+                        # filepath is "/{chapterid}/" — extract the numeric ID
+                        chapter_id = chapter_path.strip('/').split('/')[0]
+                        if chapter_id.isdigit():
+                            view_url = (
+                                f'{self.client.url_base}mod/book/view.php'
+                                f'?id={module_id}&chapterid={chapter_id}'
+                            )
+                        else:
+                            # Fallback: use the original fileurl
+                            view_url = chapter_content.get('fileurl', '')
+
+                        chapter_name = chapter_content.get('filename', f'Chapter {chapter_id}')
+                        # Strip any existing extension and use .mhtml
+                        chapter_stem = chapter_name.rsplit('.', 1)[0] if '.' in chapter_name else chapter_name
+                        mhtml_filename = f'{chapter_stem}.mhtml'
+
+                        book_files.append(
+                            {
+                                'filename': mhtml_filename,
+                                'filepath': chapter_content.get('filepath', '/'),
+                                'fileurl': view_url,
+                                'filesize': 0,
+                                'timecreated': chapter_content.get('timecreated', 0),
+                                'timemodified': chapter_content.get('timemodified', 0),
+                                'type': 'mhtml',
+                                'no_hash': True,
+                            }
+                        )
+                else:
+                    book_files += book_contents[1:]
 
             if len(book_contents) > 0:
                 # Generate Table of Contents

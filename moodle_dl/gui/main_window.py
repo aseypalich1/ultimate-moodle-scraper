@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
 )
 
 from moodle_dl.config import ConfigHelper
+from moodle_dl.gui.pages.archive_viewer import EmbeddedViewer
 from moodle_dl.gui.pages.config_page import ConfigPage
 from moodle_dl.gui.pages.download_page import DownloadPage
 from moodle_dl.gui.pages.login_page import LoginPage
@@ -25,6 +26,7 @@ class MainWindow(QMainWindow):
     PAGE_DOWNLOAD = 2
     PAGE_SETTINGS = 3
     PAGE_NOTIFICATIONS = 4
+    PAGE_ARCHIVE = 5
 
     def __init__(self, opts) -> None:
         super().__init__()
@@ -57,12 +59,14 @@ class MainWindow(QMainWindow):
         self.download_page = DownloadPage(self.config, self.opts)
         self.settings_page = SettingsPage(self.config, self.opts)
         self.notifications_page = NotificationsPage(self.config, self.opts)
+        self.archive_viewer = EmbeddedViewer()
 
         self.stack.addWidget(self.login_page)  # index 0
         self.stack.addWidget(self.config_page)  # index 1
         self.stack.addWidget(self.download_page)  # index 2
         self.stack.addWidget(self.settings_page)  # index 3
         self.stack.addWidget(self.notifications_page)  # index 4
+        self.stack.addWidget(self.archive_viewer)  # index 5
 
         # Toolbar navigation (text-only)
         self.toolbar = QToolBar('Navigation')
@@ -94,12 +98,19 @@ class MainWindow(QMainWindow):
         self.act_notifications.triggered.connect(lambda: self._navigate(self.PAGE_NOTIFICATIONS))
         self.toolbar.addAction(self.act_notifications)
 
+        self.act_archive = QAction('Archive Preview', self)
+        self.act_archive.setEnabled(True)
+        self.act_archive.setToolTip('Browse the downloaded archive offline.')
+        self.act_archive.triggered.connect(lambda: self._navigate(self.PAGE_ARCHIVE))
+        self.toolbar.addAction(self.act_archive)
+
         self._nav_actions = [
             self.act_login,
             self.act_config,
             self.act_download,
             self.act_settings,
             self.act_notifications,
+            self.act_archive,
         ]
 
         # Separator + tools

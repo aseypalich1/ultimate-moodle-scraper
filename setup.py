@@ -66,6 +66,9 @@ setup(
         'gui': [
             'PySide6>=6.5.0',
         ],
+        'mhtml': [
+            'playwright>=1.44',
+        ],
     },
     zip_safe=False,
 )

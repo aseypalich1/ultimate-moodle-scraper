@@ -129,6 +129,29 @@ class ForumMod(MoodleMod):
     async def load_files_of_discussion(self, discussion: Dict) -> List[Dict]:
         result = []
 
+        # If MHTML capture is enabled, add an MHTML snapshot of the full discussion thread
+        if self.config.get_enable_mhtml_capture():
+            discussion_id = discussion.get('discussion_id', 0)
+            view_url = f'{self.client.url_base}mod/forum/discuss.php?d={discussion_id}'
+            post_path = PT.to_valid_name(
+                datetime.utcfromtimestamp(discussion.get('created', 0)).strftime('%y-%m-%d')
+                + ' '
+                + discussion.get('subject', ''),
+                is_file=False,
+            )
+            discussion_filename = PT.to_valid_name(discussion.get('subject', 'Discussion'), is_file=True)
+            result.append(
+                {
+                    'filename': f'{discussion_filename}.mhtml',
+                    'filepath': post_path,
+                    'fileurl': view_url,
+                    'filesize': 0,
+                    'timemodified': discussion.get('timemodified', 0),
+                    'type': 'mhtml',
+                    'no_hash': True,
+                }
+            )
+
         data = {
             'discussionid': discussion.get('discussion_id', 0),
             'sortby': 'modified',

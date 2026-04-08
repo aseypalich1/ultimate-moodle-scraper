@@ -517,6 +517,18 @@ def get_parser():
     )
 
     parser.add_argument(
+        '--mhtml-capture',
+        dest='mhtml_capture',
+        default=False,
+        action='store_true',
+        help=(
+            'Capture Moodle pages (book chapters, assignments, forum threads) as full MHTML files'
+            ' using Playwright instead of downloading raw HTML. Requires playwright and Moodle cookies'
+            ' (set a private token so that moodle-dl can obtain them).'
+        ),
+    )
+
+    parser.add_argument(
         '-ltf',
         '--log-to-file',
         dest='log_to_file',

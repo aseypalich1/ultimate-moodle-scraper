@@ -280,6 +280,7 @@ class MoodleDlOpts:
     log_to_file: bool
     log_file_path: str
     gui: bool
+    mhtml_capture: bool
 
 
 class TaskState(Enum):
@@ -343,6 +344,8 @@ class DownloadOptions:
     write_links: Dict
     download_path: str
     global_opts: MoodleDlOpts
+    moodle_url: 'MoodleURL' = None  # base URL used for constructing MHTML page URLs
+    enable_mhtml_capture: bool = False  # capture rendered pages via Playwright
 
 
 @dataclass
