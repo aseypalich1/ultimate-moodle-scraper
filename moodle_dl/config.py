@@ -262,7 +262,7 @@ class ConfigHelper:
             write_links=self.get_write_links(),
             download_path=self.get_download_path(),
             global_opts=opts,
-            moodle_url=self.get_moodle_url(),
+            moodle_url=self.get_moodle_URL(),
             enable_mhtml_capture=self.get_enable_mhtml_capture(),
         )
 
